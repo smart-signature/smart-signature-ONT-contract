@@ -6,11 +6,11 @@
     "AQvZMDecMoCi2y4V6QKdJBtHW1eV7Vbaof": "password"
   },
   "deployConfig": {
-    "name": "contract name ",
-    "version": "contract version",
-    "author": "the author of contract",
-    "email": "email address",
-    "desc": "a description for your contract",
+    "name": "smart signature",
+    "version": "0.1.0",
+    "author": "yukiexe",
+    "email": "yukiexe@andoromeda.io",
+    "desc": "smart-signature-ONT-contract",
     "needStorage": true,
     "payer": "AUr5QUfeBADq6BMY6Tp5yuMsUNGpsD7nLZ",
     "gasPrice": 500,
