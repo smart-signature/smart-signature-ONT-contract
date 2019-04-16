@@ -4,7 +4,7 @@ You can import this file and methods in your smart contract,
 you can also add safe check methods within this function based on your needs.
 """
 
-from template_contract_test.libs.Utils import Revert
+from .Utils import Revert
 from boa.interop.System.Runtime import CheckWitness
 
 def Require(condition):

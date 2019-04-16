@@ -3,7 +3,7 @@
 You can import this file and methods in your smart contract,
 you can also add safe math methods within this function based on your needs.
 """
-from template_contract_test.libs.SafeCheck import Require
+from .SafeCheck import Require
 from boa.interop.System.Runtime import Notify
 
 def Add(a, b):
