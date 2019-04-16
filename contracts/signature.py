@@ -35,9 +35,9 @@ OWNER_KEY = '___OWNER_SPKZ03'
 OWN_PREFIX = '_____own_spkz03'
 ALLOWANCE_PREFIX = '___allow_spkz03'
 
-SIGNS_PREFIX = b'\x01'
+PLAYERS_PREFIX = b'\x01'
 SHARES_PREFIX = b'\x02'
-#APPROVE_PREFIX = b'\x02'
+SIGNS_PREFIX = b'\x01'
 
 ################################################################################
 # 转账合约
@@ -49,6 +49,18 @@ developerAcc = 'ARfyRJQJVdUG1NX18rvp6LncWgaXTQUNBq'
 # 30天的秒
 cycle = 3456000
 ################################################################################
+class player:
+    def __init__(self, id):
+        self.id = id
+        self.signIncome = 0
+        self.shareIncome = 0
+        self.shares = []
+
+class share:
+    def __init__(self, signId, quota):
+        self.signId = signId
+        self.quota = quota
+
 class sign:
     def __init__(self, id, author, fission_factor, ipfs_hash, public_key, signature):
         self.id = id
@@ -58,10 +70,6 @@ class sign:
         self.public_key = public_key
         self.signature = signature
 
-class share:
-    def __init__(self, signId, quota):
-        self.signId = signId
-        self.quota = quota
 
 def Main(operation, args):
     """
