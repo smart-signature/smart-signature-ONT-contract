@@ -47,12 +47,6 @@ OntContract = Base58ToAddress("AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV")
 selfContractAddress = GetExecutingScriptHash()
 # 开发者账户
 developerAcc = 'ARfyRJQJVdUG1NX18rvp6LncWgaXTQUNBq'
-# 国家
-REGION = 'region'
-# 倒计时结束时间
-ENDTIME = 'endtime'
-# 最后一次购买人
-LASTBUY = 'lastbuy'
 # 30天的秒
 cycle = 3456000
 ################################################################################
@@ -74,8 +68,6 @@ def Main(operation, args):
     # 'init' has to be invokded first after deploying the contract to store the necessary and important info into the blockchain
     if operation == 'init':
         return init()
-    if operation == 'name':
-        return NAME
     if operation == 'publish':
         if len(args) != 7:
             return False
@@ -90,19 +82,7 @@ def Main(operation, args):
             s = sign(id, author, fission_factor, ipfs_hash, public_key, signature)
             return publish(acct, s);
 
-    if operation == 'approve':
-        if len(args) != 3:
-            return False
-        owner  = args[0]
-        spender = args[1]
-        amount = args[2]
-        return approve(owner,spender,amount)
-    if operation == 'allowance':
-        if len(args) != 2:
-            return False
-        owner = args[0]
-        spender = args[1]
-        return allowance(owner,spender)
+
 
 def init():
     """
@@ -143,176 +123,17 @@ def publish(acct, sign):
     Require(is_witness)
     Require(acct == PUBLISH_ACCT)
 
-
     signKey = concat(SIGN_PREFIX,sign.id)
-    # fromBalance = Get(ctx,fromKey)
-    saveData(signKey,sign)
-
-    #toKey = concat(BALANCE_PREFIX,to_acct)
-    #toBalance = Get(ctx,toKey)
+    sSign = Serialize(sign)
+    saveData(signKey, sSign)
     
-    saveData(toKey,toBalance + amount)
     PublishEvent(sign)
     return True
 
-
-def approve(owner,spender,amount):
-    if len(spender) != 20 or len(owner) != 20:
-        raise Exception("address length error")
-    if CheckWitness(owner) == False:
-        return False
-    if amount > balanceOf(owner):
-        return False
-    key = concat(concat(APPROVE_PREFIX,owner),spender)
-    Put(ctx, key, amount)
-    ApprovalEvent(owner, spender, amount)
-    return True
-
-def transfer(from_acct,to_acct,amount):
-    if len(to_acct) != 20 or len(from_acct) != 20:
-        raise Exception("address length error")
-    if CheckWitness(from_acct) == False:
-        return False
-
-    fromKey = concat(BALANCE_PREFIX,from_acct)
-    fromBalance = Get(ctx,fromKey)
-    if amount > fromBalance:
-        return False
-    if amount == fromBalance:
-        Delete(ctx,fromKey)
-    else:
-        Put(ctx,fromKey,fromBalance - amount)
-
-    toKey = concat(BALANCE_PREFIX,to_acct)
-    toBalance = Get(ctx,toKey)
-    Put(ctx,toKey,toBalance + amount)
-    TransferEvent(from_acct, to_acct, amount)
-    return True
-
-
-
-def name():
-    """
-    :return: name of the token
-    """
-    return NAME
-
-
-def balanceOf(account):
-    """
-    :param account:
-    :return: the token balance of account
-    """
-    if len(account) != 20:
-        raise Exception("address length error")
-    return Get(ctx,concat(BALANCE_PREFIX,account))
-
-
-def transfer(from_acct,to_acct,amount):
-    """
-    Transfer amount of tokens from from_acct to to_acct
-    :param from_acct: the account from which the amount of tokens will be transferred
-    :param to_acct: the account to which the amount of tokens will be transferred
-    :param amount: the amount of the tokens to be transferred, >= 0
-    :return: True means success, False or raising exception means failure.
-    """
-    if len(to_acct) != 20 or len(from_acct) != 20:
-        raise Exception("address length error")
-    if CheckWitness(from_acct) == False:
-        return False
-
-    fromKey = concat(BALANCE_PREFIX,from_acct)
-    fromBalance = Get(ctx,fromKey)
-    if amount > fromBalance:
-        return False
-    if amount == fromBalance:
-        Delete(ctx,fromKey)
-    else:
-        Put(ctx,fromKey,fromBalance - amount)
-
-    toKey = concat(BALANCE_PREFIX,to_acct)
-    toBalance = Get(ctx,toKey)
-    Put(ctx,toKey,toBalance + amount)
-    TransferEvent(from_acct, to_acct, amount)
-    return True
-
-
-
-
-
-def approve(owner,spender,amount):
-    """
-    owner allow spender to spend amount of token from owner account
-    Note here, the amount should be less than the balance of owner right now.
-    :param owner:
-    :param spender:
-    :param amount: amount>=0
-    :return: True means success, False or raising exception means failure.
-    """
-    if len(spender) != 20 or len(owner) != 20:
-        raise Exception("address length error")
-    if CheckWitness(owner) == False:
-        return False
-    if amount > balanceOf(owner):
-        return False
-    key = concat(concat(APPROVE_PREFIX,owner),spender)
-    Put(ctx, key, amount)
-    ApprovalEvent(owner, spender, amount)
-    return True
-
-
-def transferFrom(spender,from_acct,to_acct,amount):
-    """
-    spender spends amount of tokens on the behalf of from_acct, spender makes a transaction of amount of tokens
-    from from_acct to to_acct
-    :param spender:
-    :param from_acct:
-    :param to_acct:
-    :param amount:
-    :return:
-    """
-    if len(spender) != 20 or len(from_acct) != 20 or len(to_acct) != 20:
-        raise Exception("address length error")
-    if CheckWitness(spender) == False:
-        return False
-
-    fromKey = concat(BALANCE_PREFIX, from_acct)
-    fromBalance = Get(ctx, fromKey)
-    if amount > fromBalance:
-        return False
-
-    approveKey = concat(concat(APPROVE_PREFIX,from_acct),spender)
-    approvedAmount = Get(ctx,approveKey)
-    toKey = concat(BALANCE_PREFIX,to_acct)
-    toBalance = Get(ctx, toKey)
-    if amount > approvedAmount:
-        return False
-    elif amount == approvedAmount:
-        Delete(ctx,approveKey)
-        Delete(ctx, fromBalance - amount)
-    else:
-        Put(ctx,approveKey,approvedAmount - amount)
-        Put(ctx, fromKey, fromBalance - amount)
-
-    Put(ctx, toKey, toBalance + amount)
-    TransferEvent(from_acct, to_acct, amount)
-
-    return True
-
+################################################################################
 def saveData(key, value):
     ctx = GetContext()
     Put(ctx, key, value)
-
-
-def allowance(owner,spender):
-    """
-    check how many token the spender is allowed to spend from owner account
-    :param owner: token owner
-    :param spender:  token spender
-    :return: the allowed amount of tokens
-    """
-    key = concat(concat(APPROVE_PREFIX,owner),spender)
-    return Get(ctx,key)
 
 def Revert():
     """
