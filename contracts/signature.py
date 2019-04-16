@@ -17,8 +17,7 @@ NAME = 'SmartSignature'
 
 DEPLOYER = ToScriptHash('AZgDDvShZpuW3Ved3Ku7dY5TkWJvfdSyih')
 OWNER = ToScriptHash("ANH5bHrrt111XwNEnuPZj6u95Dd6u7G4D6")
-
-PUBLISH_ACCT = 
+PUBLISHER = ToScriptHash("ANH5bHrrt111XwNEnuPZj6u95Dd6u7G4D6")
 
 ################################################################################
 # STORAGE KEY CONSTANT
@@ -26,7 +25,6 @@ PUBLISH_ACCT =
 
 DEPLOYED_KEY = 'DEPLOYED_SPKZ03'
 OWNER_KEY = '___OWNER_SPKZ03'
-SPKZ_SUPPLY_KEY = '__SUPPLY_SPKZ03'
 
 
 ################################################################################
@@ -37,9 +35,10 @@ SPKZ_SUPPLY_KEY = '__SUPPLY_SPKZ03'
 OWN_PREFIX = '_____own_spkz03'
 ALLOWANCE_PREFIX = '___allow_spkz03'
 
+SIGNS_PREFIX = b'\x01'
+SHARES_PREFIX = b'\x02'
+#APPROVE_PREFIX = b'\x02'
 
-SIGN_PREFIX = b'\x01'
-APPROVE_PREFIX = b'\x02'
 ################################################################################
 # 转账合约
 OntContract = Base58ToAddress("AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV")
@@ -58,6 +57,11 @@ class sign:
         self.ipfs_hash = ipfs_hash
         self.public_key = public_key
         self.signature = signature
+
+class share:
+    def __init__(self, signId, quota):
+        self.signId = signId
+        self.quota = quota
 
 def Main(operation, args):
     """
@@ -106,13 +110,15 @@ def init():
     # can transfer ownership to other by calling `TransferOwner` function
     saveData(OWNER_KEY, DEPLOYER)
 
+    signs = []  # 沒錯就是空的
+    shares = [] # 沒錯這也是空的
+    saveData(SIGNS_PREFIX, Serialize(signs))
+    saveData(SHARES_PREFIX, Serialize(shares))   
     # supply the coin. All coin will be belong to deployer.
-    #total = INIT_SUPPLY * FACTOR
     #saveData(SPKZ_SUPPLY_KEY, total)
     #deployer_key = concat(OWN_PREFIX, DEPLOYER)
     #saveData(deployer_key, total)
     #Notify(['transfer', '', DEPLOYER, total])
-
     return True
 
 def publish(acct, sign):
@@ -128,6 +134,34 @@ def publish(acct, sign):
     saveData(signKey, sSign)
     
     PublishEvent(sign)
+    return True
+
+def createShare(owner, in, signId):
+    if len(owner) != 20 :
+        raise Exception("owner address length error")
+    
+    is_witness = CheckWitness(owner)
+    Require(is_witness)
+
+    sSigns = Get(GetContext(), SIGNS_PREFIX)
+    sShares = Get(GetContext(), SHARES_PREFIX)
+    signs = Deserialize(sSigns)
+    shares = Deserialize(sShares)
+    for item in signs:
+        if item.id == signId:
+            # 拿到目标购买国家进行交易
+            #param = state(Base58ToAddress(fromAcc), Base58ToAddress(item[2]), item[1] - 1)
+            #res = Invoke(0, OntContract, "transfer", [param])
+            #if res != b'\x01':
+            #    Notify("buy error.")
+            #    return False
+            # 每一次给合约内部转1个币
+            #paramContract = state(Base58ToAddress(fromAcc), selfContractAddress, 1)
+            #resContract = Invoke(0, OntContract, 'transfer', [paramContract])
+    share
+    shares.append(share)
+    saveData(SHARES_PREFIX, Serialize(shares))
+    Notify("create a share success.")
     return True
 
 ################################################################################
