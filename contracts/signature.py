@@ -4,20 +4,58 @@ from boa.interop.System.Runtime import Notify, CheckWitness
 from boa.interop.System.Action import RegisterAction
 from boa.builtins import concat, ToScriptHash
 from .libs.SafeCheck import *
+from .libs.SafeMath import *
+from .libs.Utils import *
 
-TransferEvent = RegisterAction("transfer", "from", "to", "amount")
-ApprovalEvent = RegisterAction("approval", "owner", "spender", "amount")
+PublishEvent = RegisterAction("publish", "sign")
+# ApprovalEvent = RegisterAction("approval", "owner", "spender", "amount")
 
-ctx = GetContext()
 
+################################################################################
+# TOKEN INFO CONSTANTS
 NAME = 'SmartSignature'
+
+DEPLOYER = ToScriptHash('AZgDDvShZpuW3Ved3Ku7dY5TkWJvfdSyih')
 OWNER = ToScriptHash("ANH5bHrrt111XwNEnuPZj6u95Dd6u7G4D6")
 
-BALANCE_PREFIX = b'\x01'
+PUBLISH_ACCT = 
+
+################################################################################
+# STORAGE KEY CONSTANT
+# Belows are storage key for some variable token information.
+
+DEPLOYED_KEY = 'DEPLOYED_SPKZ03'
+OWNER_KEY = '___OWNER_SPKZ03'
+SPKZ_SUPPLY_KEY = '__SUPPLY_SPKZ03'
+
+
+################################################################################
+# STORAGE KEY PREFIX
+# Since all data are stored in the key-value storage, the data need to be
+# classified by key prefix. All key prefixes length must be the same.
+
+OWN_PREFIX = '_____own_spkz03'
+ALLOWANCE_PREFIX = '___allow_spkz03'
+
+
+SIGN_PREFIX = b'\x01'
 APPROVE_PREFIX = b'\x02'
-
-SUPPLY_KEY = 'TotalSupply'
-
+################################################################################
+# 转账合约
+OntContract = Base58ToAddress("AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV")
+# 本合约地址
+selfContractAddress = GetExecutingScriptHash()
+# 开发者账户
+developerAcc = 'ARfyRJQJVdUG1NX18rvp6LncWgaXTQUNBq'
+# 国家
+REGION = 'region'
+# 倒计时结束时间
+ENDTIME = 'endtime'
+# 最后一次购买人
+LASTBUY = 'lastbuy'
+# 30天的秒
+cycle = 3456000
+################################################################################
 class sign:
     def __init__(self, id, author, fission_factor, ipfs_hash, public_key, signature):
         self.id = id
@@ -26,6 +64,97 @@ class sign:
         self.ipfs_hash = ipfs_hash
         self.public_key = public_key
         self.signature = signature
+
+def Main(operation, args):
+    """
+    :param operation:
+    :param args:
+    :return:
+    """
+    # 'init' has to be invokded first after deploying the contract to store the necessary and important info into the blockchain
+    if operation == 'init':
+        return init()
+    if operation == 'name':
+        return NAME
+    if operation == 'publish':
+        if len(args) != 7:
+            return False
+        else:
+            acct = args[0]
+            id = args[1]
+            author = args[2]
+            fission_factor = args[3]
+            ipfs_hash = args[4]
+            public_key = args[5]
+            signature = args[6]
+            s = sign(id, author, fission_factor, ipfs_hash, public_key, signature)
+            return publish(acct, s);
+
+    if operation == 'approve':
+        if len(args) != 3:
+            return False
+        owner  = args[0]
+        spender = args[1]
+        amount = args[2]
+        return approve(owner,spender,amount)
+    if operation == 'allowance':
+        if len(args) != 2:
+            return False
+        owner = args[0]
+        spender = args[1]
+        return allowance(owner,spender)
+
+def init():
+    """
+    Constructor of this contract. Only deployer hard-coded can call this function
+    and cannot call this function after called once.
+    Followings are initialization list for SS.
+    """
+
+    is_witness = CheckWitness(DEPLOYER)
+    is_deployed = Get(ctx, DEPLOYED_KEY)
+    Require(is_witness)                     # only can be initialized by deployer
+    Require(not is_deployed)                # only can deploy once
+    #if is_deployed:
+    #    Notify("Already initialized!")
+    #    return False
+
+    # disable to deploy again
+    saveData(DEPLOYED_KEY, 1)
+
+    # the first owner is the deployer
+    # can transfer ownership to other by calling `TransferOwner` function
+    saveData(OWNER_KEY, DEPLOYER)
+
+    # supply the coin. All coin will be belong to deployer.
+    #total = INIT_SUPPLY * FACTOR
+    #saveData(SPKZ_SUPPLY_KEY, total)
+    #deployer_key = concat(OWN_PREFIX, DEPLOYER)
+    #saveData(deployer_key, total)
+    #Notify(['transfer', '', DEPLOYER, total])
+
+    return True
+
+def publish(acct, sign):
+    if len(acct) != 20 or len(sign.author) != 20:
+        raise Exception("address length error")
+    
+    is_witness = CheckWitness(acct)
+    Require(is_witness)
+    Require(acct == PUBLISH_ACCT)
+
+
+    signKey = concat(SIGN_PREFIX,sign.id)
+    # fromBalance = Get(ctx,fromKey)
+    saveData(signKey,sign)
+
+    #toKey = concat(BALANCE_PREFIX,to_acct)
+    #toBalance = Get(ctx,toKey)
+    
+    saveData(toKey,toBalance + amount)
+    PublishEvent(sign)
+    return True
+
 
 def approve(owner,spender,amount):
     if len(spender) != 20 or len(owner) != 20:
@@ -60,113 +189,6 @@ def transfer(from_acct,to_acct,amount):
     TransferEvent(from_acct, to_acct, amount)
     return True
 
-def name():
-    return NAME
-
-def totalSupply():
-    return Get(ctx, SUPPLY_KEY)
-
-def balanceOf(account):
-    if len(account) != 20:
-        raise Exception("address length error")
-    return Get(ctx,concat(BALANCE_PREFIX,account))
-
-def init():
-    """
-    initialize the contract, put some important info into the storage in the blockchain
-    """
-    if Get(ctx,SUPPLY_KEY):
-        Notify("Already initialized!")
-        return False
-    else:
-        FACTOR = Pow(10, DECIMALS)
-        total = TOTAL_AMOUNT * FACTOR
-        Put(ctx,SUPPLY_KEY,total)
-        Put(ctx,concat(BALANCE_PREFIX,OWNER),total)
-        TransferEvent("", OWNER, total)
-        return True
-
-
-def Main(operation, args):
-    """
-    :param operation:
-    :param args:
-    :return:
-    """
-    # 'init' has to be invokded first after deploying the contract to store the necessary and important info into the blockchain
-    if operation == 'init':
-        return init()
-    if operation == 'name':
-        return NAME
-    if operation == 'symbol':
-        return symbol()
-    if operation == 'totalSupply':
-        return totalSupply()
-    if operation == 'balanceOf':
-        if len(args) != 1:
-            return False
-        acct = args[0]
-        return balanceOf(acct)
-    if operation == 'publish':
-        if len(args) != 6:
-            return False
-        else:
-            id = args[0]
-            author = args[1]
-            fission_factor = args[2]
-            ipfs_hash = args[3]
-            public_key = args[4]
-            signature = args[5]
-            s = sign(id, author, fission_factor, ipfs_hash, public_key, signature)
-            return publish(s);
-    if operation == 'transfer':
-        if len(args) != 3:
-            return False
-        else:
-            from_acct = args[0]
-            to_acct = args[1]
-            amount = args[2]
-            return transfer(from_acct,to_acct,amount)
-    if operation == 'transferMulti':
-        return transferMulti(args)
-    if operation == 'transferFrom':
-        if len(args) != 4:
-            return False
-        spender = args[0]
-        from_acct = args[1]
-        to_acct = args[2]
-        amount = args[3]
-        return transferFrom(spender,from_acct,to_acct,amount)
-    if operation == 'approve':
-        if len(args) != 3:
-            return False
-        owner  = args[0]
-        spender = args[1]
-        amount = args[2]
-        return approve(owner,spender,amount)
-    if operation == 'allowance':
-        if len(args) != 2:
-            return False
-        owner = args[0]
-        spender = args[1]
-        return allowance(owner,spender)
-
-
-def init():
-    """
-    initialize the contract, put some important info into the storage in the blockchain
-    :return:
-    """
-    if Get(ctx,SUPPLY_KEY):
-        Notify("Already initialized!")
-        return False
-    else:
-        FACTOR = Pow(10, DECIMALS)
-        total = TOTAL_AMOUNT * FACTOR
-        Put(ctx,SUPPLY_KEY,total)
-        Put(ctx,concat(BALANCE_PREFIX,OWNER),total)
-        TransferEvent("", OWNER, total)
-        return True
 
 
 def name():
@@ -174,14 +196,6 @@ def name():
     :return: name of the token
     """
     return NAME
-
-
-def symbol():
-    """
-    :return: symbol of the token
-    """
-    return SYMBOL
-
 
 
 def balanceOf(account):
@@ -223,19 +237,7 @@ def transfer(from_acct,to_acct,amount):
     return True
 
 
-def transferMulti(args):
-    """
-    :param args: the parameter is an array, containing element like [from, to, amount]
-    :return: True means success, False or raising exception means failure.
-    """
-    for p in args:
-        if len(p) != 3:
-            # return False is wrong
-            raise Exception("transferMulti params error.")
-        if transfer(p[0], p[1], p[2]) == False:
-            # return False is wrong since the previous transaction will be successful
-            raise Exception("transferMulti failed.")
-    return True
+
 
 
 def approve(owner,spender,amount):
@@ -296,6 +298,10 @@ def transferFrom(spender,from_acct,to_acct,amount):
     TransferEvent(from_acct, to_acct, amount)
 
     return True
+
+def saveData(key, value):
+    ctx = GetContext()
+    Put(ctx, key, value)
 
 
 def allowance(owner,spender):
