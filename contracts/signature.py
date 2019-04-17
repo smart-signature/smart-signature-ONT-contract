@@ -8,11 +8,9 @@ from .libs.SafeMath import *
 from .libs.Utils import *
 
 PublishEvent = RegisterAction("publish", "sign")
-# ApprovalEvent = RegisterAction("approval", "owner", "spender", "amount")
-
 
 ################################################################################
-# TOKEN INFO CONSTANTS
+# 合约 INFO CONSTANTS
 NAME = 'SmartSignature'
 
 DEPLOYER = ToScriptHash('AZgDDvShZpuW3Ved3Ku7dY5TkWJvfdSyih')
@@ -35,9 +33,8 @@ OWNER_KEY = '___OWNER_SPKZ03'
 OWN_PREFIX = '_____own_spkz03'
 ALLOWANCE_PREFIX = '___allow_spkz03'
 
-PLAYERS_PREFIX = b'\x01'
-SHARES_PREFIX = b'\x02'
-SIGNS_PREFIX = b'\x01'
+PLAYER_PREFIX = b'\x01'
+SIGN_PREFIX = b'\x02'
 
 ################################################################################
 # 转账合约
@@ -50,22 +47,17 @@ developerAcc = 'ARfyRJQJVdUG1NX18rvp6LncWgaXTQUNBq'
 cycle = 3456000
 ################################################################################
 class player:
-    def __init__(self, id):
-        self.id = id
+    def __init__(self):
         self.signIncome = 0
         self.shareIncome = 0
-        self.shares = []
+        self.shares = {}
 
-class share:
-    def __init__(self, signId, quota):
-        self.signId = signId
-        self.quota = quota
 
 class sign:
-    def __init__(self, id, author, fission_factor, ipfs_hash, public_key, signature):
+    def __init__(self, id, author, fissionFactor, ipfs_hash, public_key, signature):
         self.id = id
         self.author = author
-        self.fission_factor = fission_factor
+        self.fissionFactor = fissionFactor
         self.ipfs_hash = ipfs_hash
         self.public_key = public_key
         self.signature = signature
@@ -87,11 +79,11 @@ def Main(operation, args):
             acct = args[0]
             id = args[1]
             author = args[2]
-            fission_factor = args[3]
+            fissionFactor = args[3]
             ipfs_hash = args[4]
             public_key = args[5]
             signature = args[6]
-            s = sign(id, author, fission_factor, ipfs_hash, public_key, signature)
+            s = sign(id, author, fissionFactor, ipfs_hash, public_key, signature)
             return publish(acct, s);
 
 
@@ -102,11 +94,8 @@ def init():
     and cannot call this function after called once.
     Followings are initialization list for SS.
     """
-
-    is_witness = CheckWitness(DEPLOYER)
-    is_deployed = Get(ctx, DEPLOYED_KEY)
-    Require(is_witness)                     # only can be initialized by deployer
-    Require(not is_deployed)                # only can deploy once
+    Require(CheckWitness(DEPLOYER))                    # only can be initialized by deployer
+    Require(not Get(ctx, DEPLOYED_KEY))                # only can deploy once
     #if is_deployed:
     #    Notify("Already initialized!")
     #    return False
@@ -117,11 +106,7 @@ def init():
     # the first owner is the deployer
     # can transfer ownership to other by calling `TransferOwner` function
     saveData(OWNER_KEY, DEPLOYER)
-
-    signs = []  # 沒錯就是空的
-    shares = [] # 沒錯這也是空的
-    saveData(SIGNS_PREFIX, Serialize(signs))
-    saveData(SHARES_PREFIX, Serialize(shares))   
+     
     # supply the coin. All coin will be belong to deployer.
     #saveData(SPKZ_SUPPLY_KEY, total)
     #deployer_key = concat(OWN_PREFIX, DEPLOYER)
@@ -133,9 +118,8 @@ def publish(acct, sign):
     if len(acct) != 20 or len(sign.author) != 20:
         raise Exception("address length error")
     
-    is_witness = CheckWitness(acct)
-    Require(is_witness)
-    Require(acct == PUBLISH_ACCT)
+    Require(CheckWitness(acct))
+    Require(acct == PUBLISHER)
 
     signKey = concat(SIGN_PREFIX,sign.id)
     sSign = Serialize(sign)
@@ -144,31 +128,43 @@ def publish(acct, sign):
     PublishEvent(sign)
     return True
 
-def createShare(owner, in, signId):
+def createShare(owner, signId, referral = None):
     if len(owner) != 20 :
         raise Exception("owner address length error")
     
-    is_witness = CheckWitness(owner)
-    Require(is_witness)
+    # owner 前置處理
+    Require(CheckWitness(owner)) # 查授權
+    pOwner = Get(GetContext(), concat(PLAYER_PREFIX, owner)) 
+    pOwner = Deserialize(p) if p else player()
 
-    sSigns = Get(GetContext(), SIGNS_PREFIX)
-    sShares = Get(GetContext(), SHARES_PREFIX)
-    signs = Deserialize(sSigns)
-    shares = Deserialize(sShares)
-    for item in signs:
-        if item.id == signId:
-            # 拿到目标购买国家进行交易
-            #param = state(Base58ToAddress(fromAcc), Base58ToAddress(item[2]), item[1] - 1)
-            #res = Invoke(0, OntContract, "transfer", [param])
-            #if res != b'\x01':
-            #    Notify("buy error.")
-            #    return False
-            # 每一次给合约内部转1个币
-            #paramContract = state(Base58ToAddress(fromAcc), selfContractAddress, 1)
-            #resContract = Invoke(0, OntContract, 'transfer', [paramContract])
-    share
-    shares.append(share)
-    saveData(SHARES_PREFIX, Serialize(shares))
+    # sign 前置處理
+    sSign = Get(GetContext(), concat(SIGN_PREFIX, signId))
+    
+    sign = Deserialize(sSign)
+
+    # 查 owner 有沒有生過這 sign 的 share
+    Require(signId in pOwner.shares)
+
+    if referral: # 有推薦人
+        if len(referral) != 20 :
+            raise Exception("owner address length error")
+
+        if referral != owner:
+            #Require(signId in pOwner.shares)
+    
+    # pOwner.shares[sign.id] = in.amount * sign.fissionFactor / 1000;
+
+    # 拿到目标购买国家进行交易
+    #param = state(Base58ToAddress(fromAcc), Base58ToAddress(item[2]), item[1] - 1)
+    #res = Invoke(0, OntContract, "transfer", [param])
+    #if res != b'\x01':
+    #    Notify("buy error.")
+    #    return False
+    # 每一次给合约内部转1个币
+    #paramContract = state(Base58ToAddress(fromAcc), selfContractAddress, 1)
+    #resContract = Invoke(0, OntContract, 'transfer', [paramContract])
+    
+    saveData(PLAYER_PREFIX, Serialize(pOwner))
     Notify("create a share success.")
     return True
 
