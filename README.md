@@ -1,14 +1,12 @@
 # smart-signature-ONT-contract
-
-# punica-init-default-box
+###### by punica
+TestNet ONT&ONG Application => https://developer.ont.io/applyOng
 
 ## Introduction
 
-This is a default box DApp project for [punica-python](https://github.com/punicasuite/punica-python).
+[punica-python](https://github.com/punicasuite/punica-python).
 
 ## Getting started
-
-The password in wallet is "password".
 
 ### Setting up the development environment
 
@@ -16,15 +14,6 @@ There are a few technical requirements before we start. Please install the follo
 
 - [Python 3.7](https://www.python.org/downloads/release/python-370/)
 - [Git](https://git-scm.com/)
-
-### Unboxing the Template Box
-
-```shell
-pip install punica
-punica init
-```
-
-
 
 ### Introduction
 
