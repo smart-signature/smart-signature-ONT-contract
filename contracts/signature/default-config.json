@@ -1,10 +1,5 @@
 {
     "defaultWallet": "wallet.json",
-    "password": {
-        "AUr5QUfeBADq6BMY6Tp5yuMsUNGpsD7nLZ": "password",
-        "AecaeSEBkt5GcBCxwz1F41TvdjX3dnKBkJ": "password",
-        "AQvZMDecMoCi2y4V6QKdJBtHW1eV7Vbaof": "password"
-    },
     "deployConfig": {
         "name": "smart signature",
         "version": "0.1.0",
@@ -12,7 +7,7 @@
         "email": "yukiexe@andoromeda.io",
         "desc": "smart signature ONT contract",
         "needStorage": true,
-        "payer": "AUr5QUfeBADq6BMY6Tp5yuMsUNGpsD7nLZ",
+        "payer": "AJKNkXMm9FpqwwvKzSq9B76CoTNSp9GVwh",
         "gasPrice": 500,
         "gasLimit": 31000000
     },

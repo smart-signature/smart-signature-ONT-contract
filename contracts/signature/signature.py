@@ -3,26 +3,18 @@ from boa.interop.Ontology.Native import Invoke
 from boa.interop.System.Action import RegisterAction
 from boa.interop.System.ExecutionEngine import GetExecutingScriptHash
 from boa.interop.System.Storage import Delete, Get, GetContext, Put
-from boa.interop.System.Runtime import Notify, CheckWitness
+from boa.interop.System.Runtime import CheckWitness, Notify, Serialize, Deserialize
 from boa.builtins import concat, ToScriptHash, append, state
 # punica compile --contracts signature.py --local true
 
 # Ont contract
-OntContract = Base58ToAddress("AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV")
+OntContract = Base58ToAddress('AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV')
 
+# contract INFO CONSTANTS
 selfContractAddress = GetExecutingScriptHash()
 
-developerAcc = 'ARfyRJQJVdUG1NX18rvp6LncWgaXTQUNBq'
-
-#PublishEvent = RegisterAction("publish", "sign")
-
-################################################################################
-# contract INFO CONSTANTS
-NAME = 'SmartSignature'
-
-DEPLOYER = ToScriptHash('AZgDDvShZpuW3Ved3Ku7dY5TkWJvfdSyih')
-OWNER = ToScriptHash("ANH5bHrrt111XwNEnuPZj6u95Dd6u7G4D6")
-PUBLISHER = ToScriptHash("ANH5bHrrt111XwNEnuPZj6u95Dd6u7G4D6")
+DEPLOYER = Base58ToAddress('AJKNkXMm9FpqwwvKzSq9B76CoTNSp9GVwh')
+PUBLISHER = Base58ToAddress('AJKNkXMm9FpqwwvKzSq9B76CoTNSp9GVwh')
 
 ################################################################################
 # STORAGE KEY CONSTANT
@@ -31,14 +23,12 @@ PUBLISHER = ToScriptHash("ANH5bHrrt111XwNEnuPZj6u95Dd6u7G4D6")
 DEPLOYED_KEY = 'DEPLOYED_SPKZ03'
 OWNER_KEY = '___OWNER_SPKZ03'
 
-
 ################################################################################
 # STORAGE KEY PREFIX
 # Since all data are stored in the key-value storage, the data need to be
 # classified by key prefix. All key prefixes length must be the same.
 
 OWN_PREFIX = '_____own_spkz03'
-ALLOWANCE_PREFIX = '___allow_spkz03'
 
 PLAYER_PREFIX = b'\x01'
 SIGN_PREFIX = b'\x02'
@@ -58,7 +48,7 @@ def Main(operation, args):
             return False
         else:
             acct = args[0]
-                                # id author fissionFactor ipfs_hash public_key signature
+            # id author fissionFactor ipfs_hash public_key signature
             return publish(acct, [args[1], args[2], args[3], args[4], args[5], args[6]]);
     if operation == 'createShare':
         if len(args) != 3 or len(args) != 4:
@@ -143,8 +133,8 @@ def createShare(owner, signId, income, referral):
         RequireScriptHash(referral)
         if referral != owner:
             referralPInfo = GetPlayerInfo(referral)
-            quota = signId in referralPInfo[2]
-            if shareReferral:
+            quota = referralPInfo[2][signId]
+            if quota:
                 delta = quota if quota < income else income
                 SubQuota(referral, referralPInfo, signId, delta)
                 AddShareIncome(referral, referralPInfo, delta)
