@@ -7,6 +7,8 @@ from boa.interop.System.Runtime import CheckWitness, Notify, Serialize, Deserial
 from boa.builtins import concat, ToScriptHash, append, state
 # punica compile --contracts signature.py --local true
 
+ctx = GetContext()
+
 # Ont contract
 OntContract = Base58ToAddress('AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV')
 
@@ -44,24 +46,23 @@ def Main(operation, args):
     if operation == 'init':
         return init()
     if operation == 'publish':
-        if len(args) != 7:
-            return False
-        else:
-            acct = args[0]
-            # id author fissionFactor ipfs_hash public_key signature
-            return publish(acct, [args[1], args[2], args[3], args[4], args[5], args[6]]);
+        if len(args) == 7:
+            return publish( args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
     if operation == 'createShare':
-        if len(args) != 3 or len(args) != 4:
-            return False
-        else:
+        if len(args) == 3 or len(args) == 4:
             owner = args[0]
             signId = args[1]
             income = args[2]
-            if len(args) == 4:
-                referral = args[4]
-                return createShare(owner, signId, income, referral)
-            else:
-                return createShare(owner, signId, income, '')
+            referral = args[4] if len(args) == 4 else ''
+            return createShare(owner, signId, income, referral)
+    if operation == 'GetPlayerInfo':
+        if len(args) == 1:
+            return GetPlayerInfo(args[0])
+    if operation == 'transferOwnership':
+        if len(args) == 1:
+            return transferOwnership(args[0])
+    
+    return False
 
 def init():
     """
@@ -76,30 +77,22 @@ def init():
     #    return False
 
     # disable to deploy again
-    saveData(DEPLOYED_KEY, 1)
+    _saveData(DEPLOYED_KEY, 1)
 
     # the first owner is the deployer
     # can transfer ownership to other by calling `TransferOwner` function
-    saveData(OWNER_KEY, DEPLOYER)
+    _saveData(OWNER_KEY, DEPLOYER)
+    Notify("Now owner address: ", DEPLOYER)
     return True
 
-
-def publish(acct, rawSign):
-    signId = rawSign[0]
-    author = rawSign[1]
-    fissionFactor = rawSign[2]
-    ipfsHash = rawSign[3]
-    publicKey = rawSign[4]
-    signature = rawSign[5]
-
-    RequireScriptHash(acct)    
+def publish(acct, signId, author, fissionFactor, ipfsHash, publicKey, signature):
+    RequireScriptHash(acct)
     RequireScriptHash(author)
     RequireWitness(acct)
     Require(acct == PUBLISHER)
 
     saveSign(signId, [author, fissionFactor, ipfsHash, publicKey, signature])
-    
-    Notify(concat(signId, " publish success."))
+    Notify(signId, " publish success.")
     #PublishEvent(sign)
     return True
 
@@ -138,26 +131,38 @@ def createShare(owner, signId, income, referral):
                 delta = quota if quota < income else income
                 SubQuota(referral, referralPInfo, signId, delta)
                 AddShareIncome(referral, referralPInfo, delta)
+                Notify(referral, "got share income", income, "ONT")
                 income -= delta
                 
     ownerPInfo[2][signId] = Div(Mul(income, fissionFactor), 1000)
-    savePlayer(owner, ownerPInfo)
+    _savePlayer(owner, ownerPInfo)
     AddSignIncome(author, authorPInfo, income)
-    Notify(concat(owner, " create a share success."))
+    Notify(author, "got sign income", income, "ONT")
+    Notify(owner, "create a share success.")
+    return True
+
+################################################################################
+def transferOwnership(_account):
+    """
+    Transfers the ownership of this contract to other.
+    :param _account: address to transfer ownership.
+    """
+    _onlyOwner()
+    Require(_transferOwnership(_account))
     return True
 
 ################################################################################
 def SubQuota(ownerAcct, ownerInfo, signId, quantity):
     ownerInfo[2][signId] = Sub(ownerInfo[2][signId], quantity)
-    savePlayer(ownerAcct, ownerInfo)
+    _savePlayer(ownerAcct, ownerInfo)
 
 def AddShareIncome(ownerAcct, ownerInfo, quantity):
     ownerInfo[0] = Add(ownerInfo[0], quantity)
-    savePlayer(ownerAcct, ownerInfo)
+    _savePlayer(ownerAcct, ownerInfo)
 
 def AddSignIncome(ownerAcct, ownerInfo, quantity):
     ownerInfo[1] = Add(ownerInfo[1], quantity)
-    savePlayer(ownerAcct, ownerInfo)
+    _savePlayer(ownerAcct, ownerInfo)
 
 def GetPlayerInfo(acct):
     sp = Get(GetContext(), concat(PLAYER_PREFIX, acct)) 
@@ -167,13 +172,37 @@ def newPlayerInfo(): # shareIncome, signIncome, shares
    return [0, 0, {}]
 
 def saveSign(signId, signData):
-    saveData(concat(SIGN_PREFIX, signId), Serialize(signData))
+    _saveData(concat(SIGN_PREFIX, signId), Serialize(signData))
 
-def savePlayer(playerAcct, playerData):
-    saveData(concat(PLAYER_PREFIX, playerAcct), Serialize(playerData))
 
-def saveData(key, value):
-    Put(GetContext(), key, value)
+################################################################################
+# INTERNAL FUNCTIONS
+# Internal functions checks parameter and storage result validation but these
+# wouldn't check the witness validation, so caller function must check the
+# witness if necessary.
+
+def _saveData(key, value):
+    Put(ctx, key, value)
+
+def _savePlayer(playerAcct, playerData):
+    _saveData(concat(PLAYER_PREFIX, playerAcct), Serialize(playerData))
+
+def _transferOwnership(_account):
+    RequireScriptHash(_account)
+    _saveData(OWNER_KEY, _account)
+    return True
+
+################################################################################
+# modifiers
+
+def _onlyOwner():
+    """
+    Checks the invoker is the contract owner or not. Owner key is saved in the
+    storage key `___OWNER`, so check its value and invoker.
+    """
+    owner = Get(ctx, OWNER_KEY)
+    RequireWitness(owner)
+    return True
 
 ################################################################################
 def Require(condition):
