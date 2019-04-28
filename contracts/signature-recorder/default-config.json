@@ -1,0 +1,46 @@
+{
+    "defaultWallet": "wallet.json",
+    "deployConfig": {
+        "name": "smart signature",
+        "version": "0.1.0",
+        "author": "yukiexe",
+        "email": "yukiexe@andoromeda.io",
+        "desc": "smart signature ONT contract",
+        "needStorage": true,
+        "payer": "AJKNkXMm9FpqwwvKzSq9B76CoTNSp9GVwh",
+        "gasPrice": 500,
+        "gasLimit": 31000000
+    },
+    "invokeConfig": {
+        "abi": "signature_abi.json",
+        "defaultPayer": "",
+        "gasPrice": 500,
+        "gasLimit": 20000,
+        "functions": [
+            {
+                "name": "init",
+                "params": {},
+                "signature": {},
+                "preExec": true
+            },
+            {
+                "name": "publish",
+                "params": {
+                    "name": "rawSign",
+                    "value": ""
+                },
+                "signature": {},
+                "preExec": true
+            },
+            {
+                "name": "createShare",
+                "params": {
+                    "name": "referral",
+                    "value": ""
+                },
+                "signature": {},
+                "preExec": true
+            }
+        ]
+    }
+}
