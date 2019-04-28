@@ -14,7 +14,7 @@ OntContract = Base58ToAddress('AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV')
 
 # contract INFO CONSTANTS
 selfContractAddress = GetExecutingScriptHash()
-safeHouseAddress = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
+#safeHouseAddress = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
 
 DEPLOYER = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
 PUBLISHER = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
@@ -33,8 +33,7 @@ OWNER_KEY = '___OWNER_SPKZ03'
 
 OWN_PREFIX = '_____own_spkz03'
 
-PLAYER_PREFIX = b'\x01'
-SIGN_PREFIX = b'\x02'
+SHARE_PREFIX = b'\x01'
 
 ################################################################################
 def Main(operation, args):
@@ -46,22 +45,14 @@ def Main(operation, args):
     # 'init' has to be invokded first after deploying the contract to store the necessary and important info into the blockchain
     if operation == 'init':
         return init()
-    if operation == 'publish':
-        if len(args) == 7:
-            return publish( args[0], args[1], args[2], args[3], args[4], args[5], args[6]);
-    if operation == 'createShare':
-        if len(args) == 3 or len(args) == 4:
-            owner = args[0]
-            signId = args[1]
-            income = args[2]
-            referral = args[4] if len(args) == 4 else ''
-            return createShare(owner, signId, income, referral)
-    if operation == 'getPlayerInfo':
-        if len(args) == 1:
-            return _getPlayerInfo(args[0])
-    if operation == 'getSign':
-        if len(args) == 1:
-            return _getSign(args[0])
+    if operation == 'RecordShare':
+        if len(args) == 4 or len(args) == 5:
+            shareKey = args[0]
+            owner = args[1]
+            signId = args[2]
+            income = args[3]
+            referral = args[4] if len(args) == 5 else ''
+            return RecordShare(shareKey, owner, signId, income, referral)
     if operation == 'transferOwnership':
         if len(args) == 1:
             return transferOwnership(args[0])
@@ -75,7 +66,7 @@ def init():
     Followings are initialization list for SS.
     """
     RequireWitness(DEPLOYER)                           # only can be initialized by deployer
-    Require(not Get(GetContext(), DEPLOYED_KEY))                # only can deploy once
+    Require(not Get(ctx, DEPLOYED_KEY))                # only can deploy once
     #if is_deployed:
     #    Notify("Already initialized!")
     #    return False
@@ -89,69 +80,21 @@ def init():
     #Notify("Now owner address: ", DEPLOYER)
     return True
 
-def publish(acct, signId, author, fissionFactor, ipfsHash, publicKey, signature):
-    RequireScriptHash(acct)
-    RequireScriptHash(author)
-    RequireWitness(acct)
-    Require(acct == PUBLISHER)
-
-    saveSign(signId, [author, fissionFactor, ipfsHash, publicKey, signature])
-    sign = [signId, author, fissionFactor, ipfsHash, publicKey, signature]
-    Notify(sign)
-    #PublishEvent(sign)
-    return True
-
-def createShare(owner, signId, income, referral):
+def RecordShare(shareKey, owner, signId, income, referral):
     # owner
     RequireScriptHash(owner)
     RequireWitness(owner)
-    ownerPInfo = _getPlayerInfo(owner) 
 
-    # sign
-    sSign = Get(GetContext(), concat(SIGN_PREFIX, signId))
-    Require(sSign)
-    sign = Deserialize(sSign)
-    author = sign[0]
-    fissionFactor = sign[1]
-    authorPInfo = _getPlayerInfo(author)
-
-    # owner sign share
-    Require(not signId in ownerPInfo[2])
-
-    param = state(Base58ToAddress(owner), safeHouseAddress, income)
+    param = state(Base58ToAddress(owner), selfContractAddress, income)
     res = Invoke(0, OntContract, "transfer", [param])
     if res != b'\x01':
-        Notify("createShare error.")
+        Notify("RecordShare error.\n")
         return False
 
-    #paramContract = state(Base58ToAddress(fromAcc), selfContractAddress, 1)
-    #resContract = Invoke(0, OntContract, 'transfer', [paramContract])
-    income = 0
-    if referral != '':
-        RequireScriptHash(referral)
-        if referral != owner:
-            referralPInfo = _getPlayerInfo(referral)
-            quota = referralPInfo[2][signId]
-            if quota:
-                delta = quota if quota < income else income
-                SubQuota(referral, referralPInfo, signId, delta)
-                AddShareIncome(referral, referralPInfo, delta)
-                #Notify(referral, "got share income", income, "ONT\n")
-                income -= delta
-                
-    ownerPInfo[2][signId] = Div(Mul(income, fissionFactor), 1000)
-    _savePlayer(owner, ownerPInfo)
-    AddSignIncome(author, authorPInfo, income)
+    _saveShareRecord(shareKey, [owner, signId, income, referral])
 
-    #Notify(author, "got sign income", income, "ONT\n")
     #Notify(owner, "create a share success.\n")
     return True
-
-def getPlayerInfo(_account):
-    return _getPlayerInfo(_account)
-
-def getSign(_sign):
-    return _getSign(_sign)
 
 ################################################################################
 def transferOwnership(_account):
@@ -164,47 +107,16 @@ def transferOwnership(_account):
     return True
 
 ################################################################################
-def SubQuota(ownerAcct, ownerInfo, signId, quantity):
-    ownerInfo[2][signId] = Sub(ownerInfo[2][signId], quantity)
-    _savePlayer(ownerAcct, ownerInfo)
-
-def AddShareIncome(ownerAcct, ownerInfo, quantity):
-    ownerInfo[0] = Add(ownerInfo[0], quantity)
-    _savePlayer(ownerAcct, ownerInfo)
-
-def AddSignIncome(ownerAcct, ownerInfo, quantity):
-    ownerInfo[1] = Add(ownerInfo[1], quantity)
-    _savePlayer(ownerAcct, ownerInfo)
-
-def newPlayerInfo(): # shareIncome, signIncome, shares
-   return [0, 0, {}]
-
-def saveSign(signId, signData):
-    _saveData(concat(SIGN_PREFIX, signId), Serialize(signData))
-
-
-################################################################################
 # INTERNAL FUNCTIONS
 # Internal functions checks parameter and storage result validation but these
 # wouldn't check the witness validation, so caller function must check the
 # witness if necessary.
 
-def _getPlayerInfo(_account):
-    RequireScriptHash(_account)
-    sp = Get(ctx, concat(PLAYER_PREFIX, _account)) 
-    return Deserialize(sp) if sp else newPlayerInfo()
-
-def _getSign(_sign):
-    ss = Get(ctx, concat(SIGN_PREFIX, _sign)) 
-    s = Deserialize(ss)
-    Notify(s) 
-    return s
+def _saveShareRecord(shareKey, shareData):
+    _saveData(concat(SHARE_PREFIX, shareKey), Serialize(signData))
 
 def _saveData(key, value):
     Put(ctx, key, value)
-
-def _savePlayer(playerAcct, playerData):
-    _saveData(concat(PLAYER_PREFIX, playerAcct), Serialize(playerData))
 
 def _transferOwnership(_account):
     RequireScriptHash(_account)
