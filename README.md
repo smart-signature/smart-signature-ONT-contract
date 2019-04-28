@@ -2,6 +2,8 @@
 ###### by punica
 TestNet ONT&ONG Application => https://developer.ont.io/applyOng
 
+參考範例 https://github.com/ONT-Avocados/python-template
+
 ## Introduction
 
 [punica-python](https://github.com/punicasuite/punica-python).
