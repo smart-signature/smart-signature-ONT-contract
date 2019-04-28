@@ -1,11 +1,11 @@
 from boa.interop.Ontology.Runtime import AddressToBase58, Base58ToAddress
 from boa.interop.Ontology.Native import Invoke
-from boa.interop.System.Action import RegisterAction
+# from boa.interop.System.Action import RegisterAction
 from boa.interop.System.ExecutionEngine import GetExecutingScriptHash
 from boa.interop.System.Storage import Delete, Get, GetContext, Put
 from boa.interop.System.Runtime import CheckWitness, Notify, Serialize, Deserialize
 from boa.builtins import concat, ToScriptHash, append, state
-# punica compile --contracts signature.py --local true
+# punica compile --contracts signature.py
 
 ctx = GetContext()
 
@@ -17,7 +17,7 @@ selfContractAddress = GetExecutingScriptHash()
 #safeHouseAddress = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
 
 DEPLOYER = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
-PUBLISHER = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
+#PUBLISHER = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
 
 ################################################################################
 # STORAGE KEY CONSTANT
@@ -32,7 +32,6 @@ OWNER_KEY = '___OWNER_SPKZ03'
 # classified by key prefix. All key prefixes length must be the same.
 
 OWN_PREFIX = '_____own_spkz03'
-
 SHARE_PREFIX = b'\x01'
 
 ################################################################################
@@ -53,6 +52,9 @@ def Main(operation, args):
             income = args[3]
             referral = args[4] if len(args) == 5 else ''
             return RecordShare(shareKey, owner, signId, income, referral)
+    if operation == 'transferONTtoAccount':
+        if len(args) == 2:
+            return transferONTtoAccount(args[0], args[1])
     if operation == 'transferOwnership':
         if len(args) == 1:
             return transferOwnership(args[0])
@@ -97,6 +99,17 @@ def RecordShare(shareKey, owner, signId, income, referral):
     return True
 
 ################################################################################
+
+def transferONTtoAccount(account, quantity):
+    """
+    Transfers ONT to address.
+    :param _account: address to transfer ONT.
+    :param quantity: quantity of ONT.
+    """
+    _onlyOwner()
+    Require(_transferONTtoAccount(account, quantity))
+    return True
+
 def transferOwnership(_account):
     """
     Transfers the ownership of this contract to other.
@@ -112,15 +125,25 @@ def transferOwnership(_account):
 # wouldn't check the witness validation, so caller function must check the
 # witness if necessary.
 
-def _saveShareRecord(shareKey, shareData):
-    _saveData(concat(SHARE_PREFIX, shareKey), Serialize(signData))
-
 def _saveData(key, value):
     Put(ctx, key, value)
+
+def _saveShareRecord(shareKey, shareData):
+    _saveData(concat(SHARE_PREFIX, shareKey), Serialize(shareData))
 
 def _transferOwnership(_account):
     RequireScriptHash(_account)
     _saveData(OWNER_KEY, _account)
+    return True
+
+def _transferONTtoAccount(_account, _quantity):
+    RequireScriptHash(_account)
+    Require(_quantity > 0)
+    param = state(selfContractAddress, Base58ToAddress(_account), _quantity)
+    res = Invoke(0, OntContract, "transfer", [param])
+    if res != b'\x01':
+        Notify("Transfer ONT error.\n")
+        return False
     return True
 
 ################################################################################
