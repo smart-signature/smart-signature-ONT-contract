@@ -10,7 +10,8 @@ from boa.builtins import concat, ToScriptHash, append, state
 ctx = GetContext()
 
 # Ont contract
-OntContract = Base58ToAddress('AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV')
+OntContract = 'AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV'
+OntContractAddress = Base58ToAddress(OntContract)
 
 # contract INFO CONSTANTS
 selfContractAddress = GetExecutingScriptHash()
@@ -45,13 +46,12 @@ def Main(operation, args):
     if operation == 'init':
         return init()
     if operation == 'RecordShare':
-        if len(args) == 4 or len(args) == 5:
-            shareKey = args[0]
-            owner = args[1]
-            signId = args[2]
-            income = args[3]
-            referral = args[4] if len(args) == 5 else ''
-            return RecordShare(shareKey, owner, signId, income, referral)
+        if len(args) == 3 or len(args) == 4:
+            owner = args[0]
+            signId = args[1]
+            income = args[2]
+            referral = args[3] if len(args) == 4 else ''
+            return RecordShare(owner, signId, income, referral)
     if operation == 'transferONTtoAccount':
         if len(args) == 2:
             return transferONTtoAccount(args[0], args[1])
@@ -79,23 +79,23 @@ def init():
     # the first owner is the deployer
     # can transfer ownership to other by calling `TransferOwner` function
     _saveData(OWNER_KEY, DEPLOYER)
-    #Notify("Now owner address: ", DEPLOYER)
+    Notify(["Now owner address: ", DEPLOYER])
     return True
 
-def RecordShare(shareKey, owner, signId, income, referral):
+def RecordShare(owner, signId, income, referral):
     # owner
-    RequireScriptHash(owner)
-    RequireWitness(owner)
+    ownerAddress = Base58ToAddress(owner)
+    RequireWitness(ownerAddress)
 
-    param = state(Base58ToAddress(owner), selfContractAddress, income)
-    res = Invoke(0, OntContract, "transfer", [param])
+    param = state(ownerAddress, selfContractAddress, income)
+    res = Invoke(0, OntContractAddress, 'transfer', [param])
     if res != b'\x01':
-        Notify("RecordShare error.\n")
+        Notify('RecordShare error.\n')
         return False
 
-    _saveShareRecord(shareKey, [owner, signId, income, referral])
-
-    #Notify(owner, "create a share success.\n")
+    shareKey = concat(owner, signId)
+    _saveShareRecord(shareKey, [OntContract, 'ONT', income, referral])
+    Notify([shareKey, OntContract, 'ONT', income, referral])
     return True
 
 ################################################################################
@@ -132,17 +132,15 @@ def _saveShareRecord(shareKey, shareData):
     _saveData(concat(SHARE_PREFIX, shareKey), Serialize(shareData))
 
 def _transferOwnership(_account):
-    RequireScriptHash(_account)
     _saveData(OWNER_KEY, _account)
     return True
 
 def _transferONTtoAccount(_account, _quantity):
-    RequireScriptHash(_account)
     Require(_quantity > 0)
     param = state(selfContractAddress, Base58ToAddress(_account), _quantity)
-    res = Invoke(0, OntContract, "transfer", [param])
+    res = Invoke(0, OntContractAddress, 'transfer', [param])
     if res != b'\x01':
-        Notify("Transfer ONT error.\n")
+        Notify('Transfer ONT error.\n')
         return False
     return True
 
@@ -168,16 +166,6 @@ def Require(condition):
 	if not condition:
 		Revert()
 	return True
-
-def RequireScriptHash(key):
-    """
-    Checks the bytearray parameter is script hash or not. Script Hash
-    length should be equal to 20.
-    :param key: bytearray parameter to check script hash format.
-    :return: True if script hash or revert the transaction.
-    """
-    Require(len(key) == 20)
-    return True
 
 def RequireWitness(witness):
 	"""
