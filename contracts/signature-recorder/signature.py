@@ -95,7 +95,6 @@ def RecordShare(owner, signId, income, referral):
 
     shareKey = concat(owner, signId)
     _saveShareRecord(shareKey, [OntContract, 'ONT', income, referral])
-    Notify([shareKey, OntContract, 'ONT', income, referral])
     return True
 
 ################################################################################
@@ -129,7 +128,9 @@ def _saveData(key, value):
     Put(ctx, key, value)
 
 def _saveShareRecord(shareKey, shareData):
-    _saveData(concat(SHARE_PREFIX, shareKey), Serialize(shareData))
+    _shareKey = concat(SHARE_PREFIX, shareKey)
+    _saveData(_shareKey, Serialize(shareData))
+    Notify([_shareKey, shareData])
 
 def _transferOwnership(_account):
     _saveData(OWNER_KEY, _account)
