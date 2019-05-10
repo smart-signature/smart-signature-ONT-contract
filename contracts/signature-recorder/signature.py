@@ -93,8 +93,14 @@ def RecordShare(owner, signId, income, referral):
         Notify('RecordShare error.\n')
         return False
 
+    share = {
+        "contract": OntContract,
+        "symbol": 'ONT',
+        "amount": income,
+        "sponsor": referral
+    }
     shareKey = concat(owner, signId)
-    _saveShareRecord(shareKey, [OntContract, 'ONT', income, referral])
+    _saveShareRecord(shareKey, share)
     return True
 
 ################################################################################
@@ -130,7 +136,7 @@ def _saveData(key, value):
 def _saveShareRecord(shareKey, shareData):
     _shareKey = concat(SHARE_PREFIX, shareKey)
     _saveData(_shareKey, Serialize(shareData))
-    Notify([_shareKey, shareData])
+    Notify([_shareKey, shareData['contract'], shareData['symbol'], shareData['amount'], shareData['sponsor'] ])
 
 def _transferOwnership(_account):
     _saveData(OWNER_KEY, _account)
