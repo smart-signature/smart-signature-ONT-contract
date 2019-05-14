@@ -15,24 +15,20 @@ OntContractAddress = Base58ToAddress(OntContract)
 
 # contract INFO CONSTANTS
 selfContractAddress = GetExecutingScriptHash()
-#safeHouseAddress = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
-
 DEPLOYER = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
-#PUBLISHER = Base58ToAddress('AbU4AyDhukbj4EFb4fX633th144Rg2sG9A')
 
 ################################################################################
 # STORAGE KEY CONSTANT
 # Belows are storage key for some variable token information.
 
-DEPLOYED_KEY = 'DEPLOYED_SPKZ03'
-OWNER_KEY = '___OWNER_SPKZ03'
+DEPLOYED_KEY = 'DEPLOYED_RUKA'
+OWNER_KEY = 'OWNER____RUKA'
 
 ################################################################################
 # STORAGE KEY PREFIX
 # Since all data are stored in the key-value storage, the data need to be
 # classified by key prefix. All key prefixes length must be the same.
 
-OWN_PREFIX = '_____own_spkz03'
 SHARE_PREFIX = b'\x01'
 
 ################################################################################
@@ -81,6 +77,8 @@ def init():
     _saveData(OWNER_KEY, DEPLOYER)
     Notify(["Now owner address: ", DEPLOYER])
     return True
+
+################################################################################
 
 def RecordShare(owner, signId, income, referral):
     # owner
@@ -138,10 +136,6 @@ def _saveShareRecord(shareKey, shareData):
     _saveData(_shareKey, Serialize(shareData))
     Notify([_shareKey, shareData['contract'], shareData['symbol'], shareData['amount'], shareData['sponsor'] ])
 
-def _transferOwnership(_account):
-    _saveData(OWNER_KEY, _account)
-    return True
-
 def _transferONTtoAccount(_account, _quantity):
     Require(_quantity > 0)
     param = state(selfContractAddress, Base58ToAddress(_account), _quantity)
@@ -149,6 +143,10 @@ def _transferONTtoAccount(_account, _quantity):
     if res != b'\x01':
         Notify('Transfer ONT error.\n')
         return False
+    return True
+
+def _transferOwnership(_account):
+    _saveData(OWNER_KEY, Base58ToAddress(_account))
     return True
 
 ################################################################################
