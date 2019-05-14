@@ -146,7 +146,9 @@ def _transferONTtoAccount(_account, _quantity):
     return True
 
 def _transferOwnership(_account):
-    _saveData(OWNER_KEY, Base58ToAddress(_account))
+    address = Base58ToAddress(_account)
+    _saveData(OWNER_KEY, address)
+    Notify(["Now owner address: ", address])
     return True
 
 ################################################################################
