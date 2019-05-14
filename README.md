@@ -1,7 +1,7 @@
 # smart-signature-ONT-contract
 ###### by punica
 
-test script hash : d7a082235298b65c5b8b78078aad03e792b1add4
+test script hash : a75451b23609e04e6606b4a08bc0304bf727ccb5
 
 TestNet ONT&ONG Application => https://developer.ont.io/applyOng
 
