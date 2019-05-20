@@ -1,12 +1,11 @@
 # smart-signature-ONT-contract
 ###### by punica
 
-test script hash : a75451b23609e04e6606b4a08bc0304bf727ccb5
+script hash : 36df9722fc0ff5fa3979f2a844a012cabe1d4c56
 
 TestNet ONT&ONG Application => https://developer.ont.io/applyOng
 
 參考範例 https://github.com/ONT-Avocados/python-template
-
 
 
 ## Introduction

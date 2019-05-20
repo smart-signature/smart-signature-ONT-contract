@@ -9,9 +9,15 @@ from boa.builtins import concat, ToScriptHash, append, state
 
 ctx = GetContext()
 
-# Ont contract
+# ONT Big endian Script Hash: 0x0100000000000000000000000000000000000000
 OntContract = 'AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV'
 OntContractAddress = Base58ToAddress(OntContract)
+# OntContract = ToScriptHash("AFmseVrdL9f9oyCzZefL9tG6UbvhUMqNMV")
+
+# ONG Big endian Script Hash: 0x0200000000000000000000000000000000000000
+OngContract = 'AFmseVrdL9f9oyCzZefL9tG6UbvhfRZMHJ'
+OngContractAddress = Base58ToAddress(OngContract)
+# OngContract = ToScriptHash("AFmseVrdL9f9oyCzZefL9tG6UbvhfRZMHJ")
 
 # contract INFO CONSTANTS
 selfContractAddress = GetExecutingScriptHash()
@@ -42,15 +48,17 @@ def Main(operation, args):
     if operation == 'init':
         return init()
     if operation == 'RecordShare':
-        if len(args) == 3 or len(args) == 4:
+        if len(args) == 5 or len(args) == 6:
             owner = args[0]
             signId = args[1]
-            income = args[2]
-            referral = args[3] if len(args) == 4 else ''
-            return RecordShare(owner, signId, income, referral)
-    if operation == 'transferONTtoAccount':
-        if len(args) == 2:
-            return transferONTtoAccount(args[0], args[1])
+            symbol = args[2]
+            amount = args[3]
+            amount2 = args[4]
+            sponsor = args[5] if len(args) == 6 else ''
+            return RecordShare(owner, signId, symbol, amount, amount2, sponsor)
+    if operation == 'transferOntOngtoAccount':
+        if len(args) == 3:
+            return transferOntOngtoAccount(args[0], args[1], args[2])
     if operation == 'transferOwnership':
         if len(args) == 1:
             return transferOwnership(args[0])
@@ -80,22 +88,30 @@ def init():
 
 ################################################################################
 
-def RecordShare(owner, signId, income, referral):
+def RecordShare(owner, signId, symbol, amount, amount2, sponsor):
     # owner
     ownerAddress = Base58ToAddress(owner)
     RequireWitness(ownerAddress)
 
-    param = state(ownerAddress, selfContractAddress, income)
-    res = Invoke(0, OntContractAddress, 'transfer', [param])
+    if symbol == 'ONT':
+        contract = OntContract
+        tokenContractAddress = OntContractAddress
+    if symbol == 'ONG':
+        contract = OngContract
+        tokenContractAddress = OngContractAddress
+    
+    param = state(ownerAddress, selfContractAddress, amount)
+    res = Invoke(0, tokenContractAddress, 'transfer', [param])
     if res != b'\x01':
         Notify('RecordShare error.\n')
         return False
 
     share = {
-        "contract": OntContract,
-        "symbol": 'ONT',
-        "amount": income,
-        "sponsor": referral
+        "contract": contract,
+        "symbol": symbol,
+        "amount": amount,
+        "amount2": amount,
+        "sponsor": sponsor,
     }
     shareKey = concat(owner, signId)
     _saveShareRecord(shareKey, share)
@@ -103,14 +119,14 @@ def RecordShare(owner, signId, income, referral):
 
 ################################################################################
 
-def transferONTtoAccount(account, quantity):
+def transferOntOngtoAccount(account, ontAmount, ongAmount):
     """
     Transfers ONT to address.
     :param _account: address to transfer ONT.
-    :param quantity: quantity of ONT.
+    :param ontAmount, ongAmount: quantity of ONT, ONG.
     """
     _onlyOwner()
-    Require(_transferONTtoAccount(account, quantity))
+    Require(_transferOntOngtoAccount(account, ontAmount, ongAmount))
     return True
 
 def transferOwnership(_account):
@@ -136,13 +152,19 @@ def _saveShareRecord(shareKey, shareData):
     _saveData(_shareKey, Serialize(shareData))
     Notify([_shareKey, shareData['contract'], shareData['symbol'], shareData['amount'], shareData['sponsor'] ])
 
-def _transferONTtoAccount(_account, _quantity):
-    Require(_quantity > 0)
-    param = state(selfContractAddress, Base58ToAddress(_account), _quantity)
+def _transferOntOngtoAccount(_account, _ontAmount, _ongAmount):
+    param = state(selfContractAddress, Base58ToAddress(_account), _ontAmount)
     res = Invoke(0, OntContractAddress, 'transfer', [param])
     if res != b'\x01':
-        Notify('Transfer ONT error.\n')
+        Notify('transfer ont error.\n')
         return False
+    Notify("transferONT succeed")
+    param = state(selfContractAddress, Base58ToAddress(_account), _ongAmount)
+    res = Invoke(0, OngContractAddress, 'transfer', [param])
+    if res != b'\x01':
+        Notify('transfer ong error.\n')
+        return False
+    Notify("transferONG succeed")
     return True
 
 def _transferOwnership(_account):
